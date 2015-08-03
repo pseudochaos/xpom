@@ -1,0 +1,33 @@
+@startuml
+
+class XPomFactory {
+    + {static} new(typeToken: Class<T>) : XPom<T>
+}
+
+class XPom <T> {
+    + using (xml: String) : T
+}
+note right : T defines type which this\nfactory will be producing
+
+class Configuration {
+
+}
+
+XPomFactory ..> XPom : <<create>>
+XPomFactory ..> Configuration : <<create>>
+XPom ..> Configuration : <<create>>
+
+enum ExceptionHandlingPolicy {
+    DAYS
+    HOURS
+    MINUTES
+}
+
+@enduml
+
+
+XPom<User> userBuilder = XPomFactory.create(User);
+User user = userBuilder.using(xml);
+
+User user = XPomFactory.create(User).using(xml);
+User user = create(User).using(xml);
