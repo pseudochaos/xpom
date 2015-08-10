@@ -4,10 +4,6 @@ import com.pseudochaos.xpom.annotation.Converter;
 import com.pseudochaos.xpom.annotation.XPath;
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -64,7 +60,7 @@ public class XPomDemoTest {
             "</dataTypes>";
 
     private static <T> T to(Class<T> clazz) {
-        return XPom.map(XML).to(clazz);
+        return XPomFactory.create(clazz).using(XML);
     }
 
     // -------------------- Simple Data Objects -------------------------------
@@ -114,14 +110,14 @@ public class XPomDemoTest {
     private static class PrivateClass {}
     @Test(expected = IllegalStateException.class)
     public void shouldCorrectlyHandlePrivateClass() throws Exception {
-        XPom.map(XML).to(PrivateClass.class);
+        to(PrivateClass.class);
     }
 
     // TODO: How to handle classes without zero argument constructors
     static class NoZeroArgumentConstructor { NoZeroArgumentConstructor(int intField) {} }
     @Test(expected = IllegalStateException.class)
     public void shouldCorrectlyHandleClassWithNoZeroArgumentConstructor() throws Exception {
-        XPom.map(XML).to(NoZeroArgumentConstructor.class);
+        to(NoZeroArgumentConstructor.class);
     }
 
     // -------------------- Converters  ---------------------------------------

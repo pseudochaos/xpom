@@ -32,7 +32,7 @@ public class ArraysITest {
             "</arrays>";
 
     private static <T> T to(Class<T> clazz) {
-        return XPom.map(XML).to(clazz);
+        return XPomFactory.create(clazz).using(XML);
     }
 
     // Arrays of primitive types:

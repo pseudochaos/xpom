@@ -1,47 +1,39 @@
 package com.pseudochaos.xpom;
 
+import com.pseudochaos.xpom.jaxp.JaxpValueExtractor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.w3c.dom.NodeList;
-import org.xml.sax.InputSource;
 
-import javax.xml.xpath.XPathConstants;
-import javax.xml.xpath.XPathExpression;
-import javax.xml.xpath.XPathExpressionException;
-import javax.xml.xpath.XPathFactory;
-import java.io.StringReader;
 import java.lang.reflect.Field;
-import java.util.*;
+import java.util.Collection;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import static java.util.Arrays.stream;
 
-public final class XPom {
+public final class XPom<T> {
 
     private static final Logger logger = LoggerFactory.getLogger(XPom.class);
 
-    private final String xml;
-    private final ConverterResolver converterResolver;
+    private final Class<T> clazz;
+    private final ValueExtractor extractor;
+    private final Configuration configuration;
 
-    private XPom(String xml, ConverterResolver converterResolver) {
-        this.xml = xml;
-        this.converterResolver = converterResolver;
+    XPom(Class<T> clazz) {
+        this.clazz = clazz;
+        this.extractor = new JaxpValueExtractor();
+        this.configuration = new Configuration();
     }
 
-    public static XPom map(String xml) {
-        return new XPom(xml,  new HierarchicalConverterResolver());
-    }
-
-    public <T> T to(Class<T> clazz) {
+    public T using(String xml) {
         T instance = newInstanceOf(clazz);
         stream(clazz.getDeclaredFields())
                 .filter(annotatedFields())
-                .forEach(populateValue(instance));
+                .forEach(populateValue(instance, xml));
         return instance;
     }
 
-    private <T> T newInstanceOf(Class<T> clazz) {
+    private T newInstanceOf(Class<T> clazz) {
         try {
             return clazz.newInstance();
         } catch (InstantiationException | IllegalAccessException e) {
@@ -53,18 +45,18 @@ public final class XPom {
         return field -> field.isAnnotationPresent(com.pseudochaos.xpom.annotation.XPath.class);
     }
 
-    private <T> Consumer<Field> populateValue(T instance) {
+    private Consumer<Field> populateValue(T instance, String xml) {
         return field -> {
-            Object value = extractValue(field);
+            Object value = extractValue(field, xml);
             setValue(instance, field, value);
         };
     }
 
-    private Object extractValue(Field field) {
+    private Object extractValue(Field field, String xml) {
         if (isCollection(field)) {
-            return extractCollection(getXPath(field));
+            return extractor.extractCollection(xml, getXPath(field));
         } else {
-            return extractScalar(getXPath(field));
+            return extractor.extractScalar(xml, getXPath(field));
         }
     }
 
@@ -76,41 +68,13 @@ public final class XPom {
         return field.getAnnotation(com.pseudochaos.xpom.annotation.XPath.class).value();
     }
 
-    private String extractScalar(String xPath) {
-        InputSource source = new InputSource(new StringReader(xml));
-        try {
-            XPathExpression xPathExpression = XPathFactory.newInstance().newXPath().compile(xPath);
-            return xPathExpression.evaluate(source);
-        } catch (XPathExpressionException e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
-    private String[] extractCollection(String xPath) {
-        InputSource source = new InputSource(new StringReader(xml));
-        try {
-            XPathExpression xPathExpression = XPathFactory.newInstance().newXPath().compile(xPath);
-            NodeList nodes = (NodeList) xPathExpression.evaluate(source, XPathConstants.NODESET);
-            String[] result = new String[nodes.getLength()];
-            for (int i = 0; i < nodes.getLength(); i++) {
-                result[i] = nodes.item(i).getTextContent();
-            }
-            return result;
-        } catch (XPathExpressionException e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
-
-    private <T> void setValue(T instance, Field field, Object value) {
+    private void setValue(T instance, Field field, Object value) {
         logger.debug("[{}] {} {} = {}", getXPath(field), getTypeString(field), field.getName(), value);
-//        Converter<Object, ?> converter = (Converter<Object, ?>) converterResolver.resolve(field.getType());
-        Converter<Object, ?> converter = (Converter<Object, ?>) converterResolver.resolve(field);
-        Object result = converter.convert(value);
+        Object result = configuration.resolveConverter(field).convert(value);
         set(instance, field, result);
     }
 
-    private <T> void set(T instance, Field field, Object result) {
+    private void set(T instance, Field field, Object result) {
         field.setAccessible(true);
         try {
             field.set(instance, result);

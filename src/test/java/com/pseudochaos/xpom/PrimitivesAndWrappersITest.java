@@ -36,7 +36,7 @@ public class PrimitivesAndWrappersITest {
             "</dataTypes>";
 
     private static <T> T to(Class<T> clazz) {
-        return XPom.map(XML).to(clazz);
+        return XPomFactory.create(clazz).using(XML);
     }
     
     static class PByte { @XPath("/dataTypes/byte") byte aByte; }
