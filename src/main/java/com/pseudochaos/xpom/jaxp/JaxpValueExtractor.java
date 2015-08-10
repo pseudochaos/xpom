@@ -4,16 +4,18 @@ import com.pseudochaos.xpom.ValueExtractor;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
+import javax.xml.namespace.NamespaceContext;
 import javax.xml.xpath.*;
 import java.io.StringReader;
 
 public class JaxpValueExtractor implements ValueExtractor {
 
     @Override
-    public String extractScalar(String xml, String xPath) {
+    public String extractScalar(String xml, String xPath, NamespaceContext namespaceContext) {
         InputSource source = new InputSource(new StringReader(xml));
         try {
             XPath emptyXPath = XPathFactory.newInstance().newXPath();
+            emptyXPath.setNamespaceContext(namespaceContext);
             XPathExpression xPathExpression = emptyXPath.compile(xPath);
             return xPathExpression.evaluate(source);
         } catch (XPathExpressionException e) {
@@ -21,11 +23,11 @@ public class JaxpValueExtractor implements ValueExtractor {
         }
     }
 
-    @Override
-    public String[] extractCollection(String xml, String xPath) {
+    public String[] extractCollection(String xml, String xPath, NamespaceContext namespaceContext) {
         InputSource source = new InputSource(new StringReader(xml));
         try {
             XPath emptyXPath = XPathFactory.newInstance().newXPath();
+            emptyXPath.setNamespaceContext(namespaceContext);
             XPathExpression xPathExpression = emptyXPath.compile(xPath);
             NodeList nodes = (NodeList) xPathExpression.evaluate(source, XPathConstants.NODESET);
             String[] result = new String[nodes.getLength()];

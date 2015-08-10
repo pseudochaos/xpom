@@ -1,15 +1,20 @@
 package com.pseudochaos.xpom;
 
-import com.pseudochaos.xpom.jaxp.JaxpValueExtractor;
-import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.pseudochaos.xpom.annotation.Namespace;
+import com.pseudochaos.xpom.annotation.NamespaceContext;
+import com.pseudochaos.xpom.jaxp.JaxpValueExtractor;
+import org.slf4j.Logger;
+
 import java.lang.reflect.Field;
-import java.util.Collection;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import static java.util.Arrays.stream;
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
 
 public final class XPom<T> {
 
@@ -54,9 +59,9 @@ public final class XPom<T> {
 
     private Object extractValue(Field field, String xml) {
         if (isCollection(field)) {
-            return extractor.extractCollection(xml, getXPath(field));
+            return extractor.extractCollection(xml, getXPath(field), getNamespaceContext());
         } else {
-            return extractor.extractScalar(xml, getXPath(field));
+            return extractor.extractScalar(xml, getXPath(field), getNamespaceContext());
         }
     }
 
@@ -86,5 +91,36 @@ public final class XPom<T> {
     private String getTypeString(Field field) {
         Class<?> type = field.getType();
         return type.isArray() ? type.getComponentType() + "[]" : type.toString();
+    }
+
+    public javax.xml.namespace.NamespaceContext getNamespaceContext() {
+        final Map<String, String> namespaceContext = new HashMap<>();
+        if (clazz.isAnnotationPresent(NamespaceContext.class)) {
+            NamespaceContext context = clazz.getAnnotation(NamespaceContext.class);
+            namespaceContext.putAll(stream(context.value()).collect(toMap(Namespace::prefix, Namespace::uri)));
+        }
+
+        return new javax.xml.namespace.NamespaceContext() {
+            @Override
+            public String getNamespaceURI(String prefix) {
+                return namespaceContext.get(prefix);
+            }
+
+            @Override
+            public String getPrefix(String namespaceURI) {
+                return namespaceContext.entrySet().stream()
+                        .filter(entry -> entry.getKey().equals(namespaceURI))
+                        .map(Map.Entry::getKey)
+                        .findFirst().orElse(null);
+            }
+
+            @Override
+            public Iterator getPrefixes(String namespaceURI) {
+                return namespaceContext.entrySet().stream()
+                        .filter(entry -> entry.getKey().equals(namespaceURI))
+                        .map(Map.Entry::getKey)
+                        .collect(toList()).iterator();
+            }
+        };
     }
 }
