@@ -1,20 +1,21 @@
 package com.pseudochaos.xpom;
 
-import org.slf4j.LoggerFactory;
-
 import com.pseudochaos.xpom.annotation.Namespace;
 import com.pseudochaos.xpom.annotation.NamespaceContext;
 import com.pseudochaos.xpom.jaxp.JaxpValueExtractor;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import static java.util.Arrays.stream;
-import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.*;
 
 public final class XPom<T> {
 
@@ -23,18 +24,26 @@ public final class XPom<T> {
     private final Class<T> clazz;
     private final ValueExtractor extractor;
     private final Configuration configuration;
+    private final Set<XField> fields;
 
     XPom(Class<T> clazz) {
         this.clazz = clazz;
         this.extractor = new JaxpValueExtractor();
         this.configuration = new Configuration();
+
+        this.fields = stream(clazz.getDeclaredFields())
+                .filter(annotatedFields())
+                .map(XField::new)
+                .collect(toSet());
+    }
+
+    private Predicate<Field> annotatedFields() {
+        return field -> field.isAnnotationPresent(com.pseudochaos.xpom.annotation.XPath.class);
     }
 
     public T using(String xml) {
         T instance = newInstanceOf(clazz);
-        stream(clazz.getDeclaredFields())
-                .filter(annotatedFields())
-                .forEach(populateValue(instance, xml));
+        fields.stream().forEach(populateValue(instance, xml));
         return instance;
     }
 
@@ -46,51 +55,46 @@ public final class XPom<T> {
         }
     }
 
-    private Predicate<Field> annotatedFields() {
-        return field -> field.isAnnotationPresent(com.pseudochaos.xpom.annotation.XPath.class);
-    }
-
-    private Consumer<Field> populateValue(T instance, String xml) {
+    private Consumer<XField> populateValue(T instance, String xml) {
         return field -> {
-            Object value = extractValue(field, xml);
-            setValue(instance, field, value);
+            Object rawValue = extractValueFrom(xml, field);
+            Object value = convert(rawValue, field);
+            set(value, field, instance);
         };
     }
 
-    private Object extractValue(Field field, String xml) {
-        if (isCollection(field)) {
-            return extractor.extractCollection(xml, getXPath(field), getNamespaceContext());
+    private Object extractValueFrom(String xml, XField field) {
+        Object result;
+        if (field.isCollection()) {
+            result = extractor.extractCollection(xml, field.getXPath(), getNamespaceContext());
         } else {
-            return extractor.extractScalar(xml, getXPath(field), getNamespaceContext());
+            result = extractor.extractScalar(xml, field.getXPath(), getNamespaceContext());
+        }
+        logger.debug("{} = {}", field, result);
+        return result;
+    }
+
+    private Object convert(Object rawValue, XField field) {
+        ExceptionHandlingStrategy strategy = configuration.getExceptionHandlingStrategy(field.getJavaField());
+        if (rawValue == null) {
+            return strategy.handleValueNotPresent(field.isMandatory(), field.getDefaultValue());
+        } else {
+            try {
+                return configuration.resolveConverter(field.getJavaField()).convert(rawValue);
+            } catch (Exception e) {
+                return strategy.handleConversionException(e, field.isMandatory(), field.getDefaultValue());
+            }
         }
     }
 
-    private boolean isCollection(Field field) {
-        return field.getType().isArray() || Collection.class.isAssignableFrom(field.getType());
-    }
-
-    private String getXPath(Field field) {
-        return field.getAnnotation(com.pseudochaos.xpom.annotation.XPath.class).value();
-    }
-
-    private void setValue(T instance, Field field, Object value) {
-        logger.debug("[{}] {} {} = {}", getXPath(field), getTypeString(field), field.getName(), value);
-        Object result = configuration.resolveConverter(field).convert(value);
-        set(instance, field, result);
-    }
-
-    private void set(T instance, Field field, Object result) {
+    private void set(Object value, XField xField, T instance) {
+        Field field = xField.getJavaField();
         field.setAccessible(true);
         try {
-            field.set(instance, result);
+            field.set(instance, value);
         } catch (IllegalAccessException e) {
             throw new IllegalStateException(e);
         }
-    }
-
-    private String getTypeString(Field field) {
-        Class<?> type = field.getType();
-        return type.isArray() ? type.getComponentType() + "[]" : type.toString();
     }
 
     public javax.xml.namespace.NamespaceContext getNamespaceContext() {

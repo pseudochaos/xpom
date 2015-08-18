@@ -23,7 +23,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  *     <ul>TODO: fields containing <code>collections</code> of <code>Simple Data Objects</code></ul>
  * </li>
  *
- *
+ * Exception handling strategies levels (down-to-top):
+ *      1) JVM Level   - can be overridden by setting a value on XPomFactory
+ *      2) Class Level - can be overridden by setting a value on a particular class mapper
+ *      3) Field Level - can be overridden by setting a value for a particular field on a particular class mapper (not recommended)
  *
  * Hierarchical configuration:
  *      JVM Level: XPomFactory.registerTypeConverter(Byte.class, new ByteConverter())
@@ -43,12 +46,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * TODO: Levels of type converters: default -> factory -> class -> type
  * TODO: Chain of converters for parsing some value (i.e. boolean "true/false", "yes/no", "1/0")
-* TODO: Difference between Repository and Registry patterns
-
+ * TODO: Difference between Repository and Registry patterns
  */
 public class XPomDemoTest {
 
-    @XPath(value = "/xpath", exceptionHandlingPolicy = ExceptionHandlingPolicy.THROW)
     private static final String XML =
             "<dataTypes>" +
                 "<string>Hello, XPom!</string>" +

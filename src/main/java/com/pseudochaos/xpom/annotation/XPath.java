@@ -1,7 +1,7 @@
 package com.pseudochaos.xpom.annotation;
 
 import com.pseudochaos.xpom.Converter;
-import com.pseudochaos.xpom.ExceptionHandlingPolicy;
+import com.pseudochaos.xpom.ExceptionHandling;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -14,7 +14,9 @@ public @interface XPath {
 
     String value();
 
-    Class<? extends Converter> converter() default Converter.class;
+    ExceptionHandling exceptionHandling() default ExceptionHandling.FAIL;
 
-    ExceptionHandlingPolicy exceptionHandlingPolicy() default ExceptionHandlingPolicy.THROW;
+    boolean mandatory() default false;
+
+    Class<? extends Converter> converter() default Converter.class;
 }

@@ -14,4 +14,7 @@ public class Configuration {
         return (Converter<Object, ?>) converterResolver.resolve(field);
     }
 
+    public ExceptionHandlingStrategy getExceptionHandlingStrategy(Field field) {
+        return null;
+    }
 }
