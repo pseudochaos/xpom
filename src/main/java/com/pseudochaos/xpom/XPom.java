@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.xml.namespace.NamespaceContext;
 import java.lang.reflect.Field;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -55,33 +56,43 @@ public final class XPom<T> {
 
     private Consumer<XField> populateValue(T instance, String xml) {
         return field -> {
-            Object rawValue = extractValueFrom(xml, field);
-            Object value = convert(rawValue, field);
-            set(value, field, instance);
+            Optional<?> rawValue = extractValueFrom(xml, field);
+            Optional<?> value = convert(rawValue, field);
+            value.ifPresent(v -> set(v, field, instance));
         };
     }
 
-    private Object extractValueFrom(String xml, XField field) {
-        Object result;
+    private Optional<?> extractValueFrom(String xml, XField field) {
+        Optional<?> result;
         if (field.isCollection()) {
             result = extractor.extractCollection(xml, field.getXPath());
         } else {
             result = extractor.extractScalar(xml, field.getXPath());
         }
-        logger.debug("{} = {}", field, result);
+        logger.debug("{} = {}", field, result.isPresent() ? result.get() : "NONE");
         return result;
     }
 
-    private Object convert(Object rawValue, XField field) {
-        if (rawValue == null) {
-            return configuration.getExceptionHandlingStrategy(field.getJavaField()).handleValueNotPresent(field);
-        } else {
+    private Optional<?> convert(Optional<?> rawValue, XField field) {
+        Optional<?> result = Optional.empty();
+        if (rawValue.isPresent()) {
             try {
-                return configuration.resolveConverter(field.getJavaField()).convert(rawValue);
+                result = Optional.of(resolveConverter(field).convert(rawValue.get()));
             } catch (Exception e) {
-                return configuration.getExceptionHandlingStrategy(field.getJavaField()).handleConversionException(e, field);
+                resolveStrategy(field).handleConversionException(e, field);
             }
+        } else {
+            resolveStrategy(field).handleValueNotPresent(field);
         }
+        return result;
+    }
+
+    private ExceptionHandlingStrategy resolveStrategy(XField field) {
+        return configuration.getExceptionHandlingStrategy(field.getJavaField());
+    }
+
+    private Converter<Object, ?> resolveConverter(XField field) {
+        return configuration.resolveConverter(field.getJavaField());
     }
 
     private void set(Object value, XField xField, T instance) {

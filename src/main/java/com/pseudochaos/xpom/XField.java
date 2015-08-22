@@ -58,14 +58,6 @@ public class XField {
         return String.format("@XPath(\"%s\") %s %s", getRawXPath(), getTypeString(), field.getName());
     }
 
-    public Object getDefaultValue() {
-        return null;
-    }
-
-    public boolean hasExplicitDefaultValue() {
-        return false;
-    }
-
     public com.pseudochaos.xpom.XPath getXPath() {
         return xPath;
     }

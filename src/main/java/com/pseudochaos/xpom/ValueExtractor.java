@@ -1,9 +1,11 @@
 package com.pseudochaos.xpom;
 
+import java.util.Optional;
+
 public interface ValueExtractor {
 
-    String extractScalar(String xml, XPath xPath);
+    Optional<String> extractScalar(String xml, XPath xPath);
 
-    String[] extractCollection(String xml, XPath xPath);
+    Optional<String[]> extractCollection(String xml, XPath xPath);
 
 }

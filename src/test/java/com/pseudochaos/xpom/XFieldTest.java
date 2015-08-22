@@ -79,22 +79,4 @@ public class XFieldTest {
         XField xField = new XField(getField("listField"));
         assertThat(xField.toString()).isEqualTo("@XPath(\"/dummy\") java.util.List<String> listField");
     }
-
-    @Test
-    public void shouldReturnDefaultValueExplicitlyAssignedToField() throws Exception {
-        XField xField = new XField(getField("intFieldWithDefaultValue"));
-        assertThat(xField.getDefaultValue()).isEqualTo((Object) intFieldWithDefaultValue);
-    }
-
-    @Test
-    public void shouldReturnJavaDefaultValueIfNoValueExplicitlyAssignedToField() throws Exception {
-        XField xField = new XField(getField("notMandatoryField"));
-        assertThat(xField.getDefaultValue()).isEqualTo((Object) 0.0d);
-    }
-
-    @Test
-    public void shouldIdentifyThatFieldHasExplicitlyAssignedValue() throws Exception {
-        XField xField = new XField(getField("intFieldWithDefaultValue"));
-        assertThat(xField.hasExplicitDefaultValue()).isTrue();
-    }
 }
