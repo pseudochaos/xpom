@@ -1,21 +1,17 @@
 package com.pseudochaos.xpom;
 
-import com.pseudochaos.xpom.annotation.Namespace;
-import com.pseudochaos.xpom.annotation.NamespaceContext;
 import com.pseudochaos.xpom.jaxp.JaxpValueExtractor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.xml.namespace.NamespaceContext;
 import java.lang.reflect.Field;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import static java.util.Arrays.stream;
-import static java.util.stream.Collectors.*;
+import static java.util.stream.Collectors.toSet;
 
 public final class XPom<T> {
 
@@ -25,15 +21,17 @@ public final class XPom<T> {
     private final ValueExtractor extractor;
     private final Configuration configuration;
     private final Set<XField> fields;
+    private final NamespaceContext namespaceContext;
 
     XPom(Class<T> clazz) {
         this.clazz = clazz;
         this.extractor = new JaxpValueExtractor();
         this.configuration = new Configuration();
 
+        this.namespaceContext = new XNamespaceContext(clazz);
         this.fields = stream(clazz.getDeclaredFields())
                 .filter(annotatedFields())
-                .map(XField::new)
+                .map(field -> new XField(field, namespaceContext))
                 .collect(toSet());
     }
 
@@ -66,23 +64,22 @@ public final class XPom<T> {
     private Object extractValueFrom(String xml, XField field) {
         Object result;
         if (field.isCollection()) {
-            result = extractor.extractCollection(xml, field.getXPath(), getNamespaceContext());
+            result = extractor.extractCollection(xml, field.getXPath());
         } else {
-            result = extractor.extractScalar(xml, field.getXPath(), getNamespaceContext());
+            result = extractor.extractScalar(xml, field.getXPath());
         }
         logger.debug("{} = {}", field, result);
         return result;
     }
 
     private Object convert(Object rawValue, XField field) {
-        ExceptionHandlingStrategy strategy = configuration.getExceptionHandlingStrategy(field.getJavaField());
         if (rawValue == null) {
-            return strategy.handleValueNotPresent(field.isMandatory(), field.getDefaultValue());
+            return configuration.getExceptionHandlingStrategy(field.getJavaField()).handleValueNotPresent(field);
         } else {
             try {
                 return configuration.resolveConverter(field.getJavaField()).convert(rawValue);
             } catch (Exception e) {
-                return strategy.handleConversionException(e, field.isMandatory(), field.getDefaultValue());
+                return configuration.getExceptionHandlingStrategy(field.getJavaField()).handleConversionException(e, field);
             }
         }
     }
@@ -97,34 +94,7 @@ public final class XPom<T> {
         }
     }
 
-    public javax.xml.namespace.NamespaceContext getNamespaceContext() {
-        final Map<String, String> namespaceContext = new HashMap<>();
-        if (clazz.isAnnotationPresent(NamespaceContext.class)) {
-            NamespaceContext context = clazz.getAnnotation(NamespaceContext.class);
-            namespaceContext.putAll(stream(context.value()).collect(toMap(Namespace::prefix, Namespace::uri)));
-        }
-
-        return new javax.xml.namespace.NamespaceContext() {
-            @Override
-            public String getNamespaceURI(String prefix) {
-                return namespaceContext.get(prefix);
-            }
-
-            @Override
-            public String getPrefix(String namespaceURI) {
-                return namespaceContext.entrySet().stream()
-                        .filter(entry -> entry.getKey().equals(namespaceURI))
-                        .map(Map.Entry::getKey)
-                        .findFirst().orElse(null);
-            }
-
-            @Override
-            public Iterator getPrefixes(String namespaceURI) {
-                return namespaceContext.entrySet().stream()
-                        .filter(entry -> entry.getKey().equals(namespaceURI))
-                        .map(Map.Entry::getKey)
-                        .collect(toList()).iterator();
-            }
-        };
+    public NamespaceContext getNamespaceContext() {
+        return namespaceContext;
     }
 }

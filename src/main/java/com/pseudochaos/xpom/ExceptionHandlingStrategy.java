@@ -1,6 +1,6 @@
 package com.pseudochaos.xpom;
 
 public interface ExceptionHandlingStrategy {
-    Object handleValueNotPresent(boolean mandatory, Object defaultValue);
-    Object handleConversionException(Throwable e, boolean mandatory, Object defaultValue);
+    Object handleValueNotPresent(XField field);
+    Object handleConversionException(Throwable e, XField field);
 }

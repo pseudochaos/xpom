@@ -35,7 +35,7 @@ public class XFieldTest {
     @Test
     public void shouldExtractStringXPathValueFromAnnotation() throws Exception {
         XField xField = new XField(getField("notMandatoryField"));
-        assertThat(xField.getXPath()).isEqualTo("/dummy");
+        assertThat(xField.getRawXPath()).isEqualTo("/dummy");
     }
 
     @Test
