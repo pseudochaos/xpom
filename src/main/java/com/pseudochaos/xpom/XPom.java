@@ -9,6 +9,7 @@ import java.lang.reflect.Field;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 import static java.util.Arrays.stream;
@@ -57,8 +58,11 @@ public final class XPom<T> {
     private Consumer<XField> populateValue(T instance, String xml) {
         return field -> {
             Optional<?> rawValue = extractValueFrom(xml, field);
-            Optional<?> value = convert(rawValue, field);
-            value.ifPresent(v -> set(v, field, instance));
+            if (rawValue.isPresent()) {
+                rawValue.map(convert(field)).ifPresent(set(field, instance));
+            } else {
+                handleValueNotPresent(field);
+            }
         };
     }
 
@@ -73,36 +77,39 @@ public final class XPom<T> {
         return result;
     }
 
-    private Optional<?> convert(Optional<?> rawValue, XField field) {
-        Optional<?> result = Optional.empty();
-        if (rawValue.isPresent()) {
+    private Function<Object, Object> convert(XField field) {
+        return rawValue -> {
             try {
-                result = Optional.of(resolveConverter(field).convert(rawValue.get()));
+                return resolveConverter(field).convert(rawValue);
             } catch (Exception e) {
-                resolveStrategy(field).handleConversionException(e, field);
+                handleConversionException(field, e);
+                return null; // Will be converted to Optional.empty() by map() function
             }
-        } else {
-            resolveStrategy(field).handleValueNotPresent(field);
-        }
-        return result;
-    }
-
-    private ExceptionHandlingStrategy resolveStrategy(XField field) {
-        return configuration.getExceptionHandlingStrategy(field.getJavaField());
+        };
     }
 
     private Converter<Object, ?> resolveConverter(XField field) {
         return configuration.resolveConverter(field.getJavaField());
     }
 
-    private void set(Object value, XField xField, T instance) {
-        Field field = xField.getJavaField();
-        field.setAccessible(true);
-        try {
-            field.set(instance, value);
-        } catch (IllegalAccessException e) {
-            throw new IllegalStateException(e);
-        }
+    private void handleConversionException(XField field, Exception e) {
+        configuration.getExceptionHandlingStrategy(field.getJavaField()).handleConversionException(e, field);
+    }
+
+    private Consumer<Object> set(XField xField, T instance) {
+        return value -> {
+            Field field = xField.getJavaField();
+            field.setAccessible(true);
+            try {
+                field.set(instance, value);
+            } catch (IllegalAccessException e) {
+                throw new XPomException("Failed to set a value to the field " + xField, e);
+            }
+        };
+    }
+
+    private void handleValueNotPresent(XField field) {
+        configuration.getExceptionHandlingStrategy(field.getJavaField()).handleValueNotPresent(field);
     }
 
     public NamespaceContext getNamespaceContext() {

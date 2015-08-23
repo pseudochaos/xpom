@@ -64,6 +64,13 @@ public class XPomDemoTest {
         return XPomFactory.create(clazz).using(XML);
     }
 
+    static class Clazz { @XPath("/none") String string; }
+    @Test
+    public void no_value() throws Exception {
+        assertThat(to(Clazz.class).string).isEqualTo("Hello, XPom!");
+    }
+
+
     // -------------------- Simple Data Objects -------------------------------
 
     static class XString { @XPath("/dataTypes/string") String string; }
