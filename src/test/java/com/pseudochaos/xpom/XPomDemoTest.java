@@ -1,7 +1,7 @@
 package com.pseudochaos.xpom;
 
-import com.pseudochaos.xpom.annotation.Converter;
 import com.pseudochaos.xpom.annotation.XPath;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -79,73 +79,60 @@ public class XPomDemoTest {
         assertThat(to(XString.class).string).isEqualTo("Hello, XPom!");
     }
 
-    // -------------------- XPath functions -----------------------------------
-
-    static class XPathFunctionCount { @XPath("count(//boolean/*)") int javaPrimitivesCount; }
-    @Test
-    public void function_count_to_int() throws Exception {
-        assertThat(to(XPathFunctionCount.class).javaPrimitivesCount).isEqualTo(2);
-    }
-
-    static class XPathFunctionBoolean {
-        @XPath("boolean(/unexistingNode)") private boolean isUnexistingNodeExist;
-        @XPath("boolean(/dataTypes)") private boolean isExistingNodeExist;
-    }
-    @Test
-    public void function_node_to_boolean() throws Exception {
-        XPathFunctionBoolean functionBoolean = to(XPathFunctionBoolean.class);
-        assertThat(functionBoolean.isUnexistingNodeExist).isFalse();
-        assertThat(functionBoolean.isExistingNodeExist).isTrue();
-    }
-
     // -------------------- Edge cases ----------------------------------------
 
     // TODO: Inheritance
-    // TODO: Final field
     // TODO: field is static
     // TODO: 128 for byte
-    // TODO: Not found: exception or warning, java default, users default
-    // TODO: Find a way to deal with private inner/static classes
+    
+    private static class PrivateStaticNestedClass { @XPath("/dataTypes/string") String string; }
+    @Test
+    @Ignore
+    public void shouldPerformMappingOfPrivateStaticNestedClass() {
+        assertThat(to(PrivateStaticNestedClass.class).string).isEqualTo("Hello, XPom!");
+    }
 
-    // TODO: Define strategy of handling non annotated classes. Options: a warning to the log or exception
+    class InnerClass { @XPath("/dataTypes/string") String string; }
+    @Test(expected = XPomException.class)
+    @Ignore
+    public void shouldThrowExceptionWhenCreatingMapperForInnerClass() {
+        XPomFactory.create(InnerClass.class);
+    }
+
+    private class PrivateInnerClass { @XPath("/dataTypes/string") String string; }
+    @Test(expected = XPomException.class)
+    @Ignore
+    public void shouldThrowExceptionWhenCreatingMapperForPrivateInnerClass() {
+        XPomFactory.create(PrivateInnerClass.class);
+    }
+
+    static class StaticNestedClass { @XPath("/dataTypes/string") String string; }
+    @Test
+    public void shouldPerformMappingOfStaticNestedClass() {
+        assertThat(to(StaticNestedClass.class).string).isEqualTo("Hello, XPom!");
+    }
+
+    static class FinalField { @XPath("/dataTypes/string") final String string = "changeMeViaXPath"; }
+    @Test(expected = XPomException.class)
+    @Ignore("not ready yet. Don't forget about positive scenario - all annotated fields are not final")
+    public void shouldThrowExceptionWhenCreatingMapperForClassWithAnnotatedFinalFields() {
+        XPomFactory.create(FinalField.class);
+    }
+
+    // TODO: Define a strategy of handling non annotated classes. Options: a warning to the log or exception
     static class NonAnnotatedClass { int intField; }
     @Test
-    public void shouldCorrectlyHandleClassWithoutXPathAnnotations() throws Exception {
+    public void shouldCorrectlyHandleClassWithoutXPathAnnotations() {
         assertThat(to(NonAnnotatedClass.class).intField).isZero();
     }
 
-    // TODO: How to handle private classes
-    private static class PrivateClass {}
-    @Test(expected = IllegalStateException.class)
-    public void shouldCorrectlyHandlePrivateClass() throws Exception {
-        to(PrivateClass.class);
+    // TODO: How to handle classes without zero argument constructors?
+    static class NoZeroArgumentConstructor {
+        NoZeroArgumentConstructor(int intField) {}
     }
-
-    // TODO: How to handle classes without zero argument constructors
-    static class NoZeroArgumentConstructor { NoZeroArgumentConstructor(int intField) {} }
-    @Test(expected = IllegalStateException.class)
-    public void shouldCorrectlyHandleClassWithNoZeroArgumentConstructor() throws Exception {
-        to(NoZeroArgumentConstructor.class);
+    @Test(expected = XPomException.class)
+    @Ignore
+    public void shouldThrowExceptionWhenCreatingMapperForClassWithoutZeroArgumentConstructor() {
+        XPomFactory.create(NoZeroArgumentConstructor.class);
     }
-
-    // -------------------- Converters  ---------------------------------------
-
-    // Filed level converter
-
-    static class BinIntConverter implements com.pseudochaos.xpom.Converter<String, Integer> {
-        @Override
-        public Integer convert(String source) {
-            return source.startsWith("0b") ? Integer.parseInt(source.replaceFirst("0b", ""), 2) : Integer.parseInt( source, 2);
-        }
-    }
-    static class PBinInt {
-        @XPath(value = "/dataTypes/bin", converter = BinIntConverter.class)
-        @Converter(BinIntConverter.class)
-        int binInt;
-    }
-    @Test
-    public void primitive_int_bin_absolute_XPath() throws Exception {
-        assertThat(to(PBinInt.class).binInt).isEqualTo(26);
-    }
-
 }
