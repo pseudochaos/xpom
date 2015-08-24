@@ -12,12 +12,6 @@ public class XField {
     private final Field field;
     private final com.pseudochaos.xpom.XPath xPath;
 
-    public XField(Field field) {
-        this.field = field;
-        this.xPath = new com.pseudochaos.xpom.XPath(getRawXPath());
-
-    }
-
     public XField(Field field, NamespaceContext namespaceContext) {
         this.field = field;
         this.xPath = new com.pseudochaos.xpom.XPath(getRawXPath(), namespaceContext);

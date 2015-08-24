@@ -10,11 +10,6 @@ public class XPath {
     private final String xPath;
     private final NamespaceContext namespaceContext;
 
-    public XPath(String xPath) {
-        this.xPath = xPath;
-        this.namespaceContext = new XNamespaceContext();
-    }
-
     public XPath(String xPath, NamespaceContext namespaceContext) {
         this.xPath = xPath;
         this.namespaceContext = namespaceContext;

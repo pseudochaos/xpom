@@ -18,89 +18,120 @@ import static org.assertj.core.api.Assertions.assertThat;
 @RunWith(JUnitParamsRunner.class)
 public class XNamespaceContextTest {
 
-    private static final String PREFIX_ONE = "prefixOne";
-    private static final String PREFIX_TWO = "prefixTwo";
-    private static final String URI = "URI.for.prefix.one.and.two";
-    private static final String ANOTHER_PREFIX = "another.prefix";
+    private static final String PREFIX_ONE = "prefix1uri";
+    private static final String PREFIX_TWO = "prefix2uri";
+    private static final String URI = "URI";
+    private static final String ANOTHER_PREFIX = "anotherPrefix";
     private static final String ANOTHER_URI = "another.URI";
-    private static final String DEFAULT_NS_URI = "default.ns.URI";
+    private static final String DEFAULT_NS_URI = "default.ns.uri";
 
     @NamespaceContext({
-            @Namespace(uri = DEFAULT_NS_URI),
             @Namespace(prefix = PREFIX_ONE, uri = URI),
             @Namespace(prefix = PREFIX_TWO, uri = URI),
             @Namespace(prefix = ANOTHER_PREFIX, uri = ANOTHER_URI),
     })
-    static class AnnotationTest {}
+    private static class CommonNamespaceTest {}
+    private javax.xml.namespace.NamespaceContext commonContext = new XNamespaceContext(CommonNamespaceTest.class);
 
-    private javax.xml.namespace.NamespaceContext context = new XNamespaceContext(AnnotationTest.class);
+    @NamespaceContext({
+            @Namespace(uri = DEFAULT_NS_URI),
+    })
+    private static class DefaultURITest {}
+    private javax.xml.namespace.NamespaceContext defaultURIContext = new XNamespaceContext(DefaultURITest.class);
 
-    private Object defaultMapping() {
+    private Object dataForGetNamespaceURI() {
         return new Object[]{
-                new Object[]{XMLConstants.DEFAULT_NS_PREFIX, XMLConstants.NULL_NS_URI}, // FIXME: It doesn't work. Fix issue with resolving default ns uri when it's present
+                new Object[]{XMLConstants.DEFAULT_NS_PREFIX, XMLConstants.NULL_NS_URI},
                 new Object[]{XMLConstants.XML_NS_PREFIX, XMLConstants.XML_NS_URI},
                 new Object[]{XMLConstants.XMLNS_ATTRIBUTE, XMLConstants.XMLNS_ATTRIBUTE_NS_URI},
-        };
-    }
-
-    private Object getNamespaceURI() {
-        return new Object[]{
                 new Object[]{"unboundPrefix", XMLConstants.NULL_NS_URI},
                 new Object[]{PREFIX_ONE, URI},
                 new Object[]{PREFIX_TWO, URI},
-        };
-    }
-
-    @Parameters(method = "defaultMapping,getNamespaceURI")
-    @Test
-    public void shouldReturnCorrectNamespaceURIForGivenPrefix(String prefix, String uri) {
-        assertThat(context.getNamespaceURI(prefix)).isEqualTo(uri);
-    }
-
-    private Object getPrefix() {
-        return new Object[]{
-                new Object[]{XMLConstants.DEFAULT_NS_PREFIX, DEFAULT_NS_URI},
-                new Object[]{null, "unboundNamespaceURI"},
                 new Object[]{ANOTHER_PREFIX, ANOTHER_URI},
         };
     }
 
-    @Parameters(method = "defaultMapping,getPrefix")
+    @Parameters(method = "dataForGetNamespaceURI")
     @Test
-    public void shouldReturnCorrectPrefixForGivenNamespaceURI(String prefix, String uri) {
-        assertThat(context.getPrefix(uri)).isEqualTo(prefix);
+    public void shouldReturnCorrectNamespaceURIForGivenPrefix(String prefix, String uri) {
+        assertThat(commonContext.getNamespaceURI(prefix)).isEqualTo(uri);
     }
 
-    private Object getPrefixes() {
+    @Test
+    public void shouldReturnCorrectNamespaceURIWhenDefaultNamespaceExplicitlyDefined() {
+        assertThat(defaultURIContext.getNamespaceURI(XMLConstants.DEFAULT_NS_PREFIX)).isEqualTo(DEFAULT_NS_URI);
+    }
+
+    private Object dataForGetPrefix() {
         return new Object[]{
-                new Object[]{XMLConstants.XML_NS_URI, asList(XMLConstants.XML_NS_PREFIX)},
-                new Object[]{XMLConstants.XMLNS_ATTRIBUTE_NS_URI, asList(XMLConstants.XMLNS_ATTRIBUTE) },
-                new Object[]{"unboundNamespaceURI", emptyList()},
-                new Object[]{URI, asList(PREFIX_ONE, PREFIX_TWO)},
-                new Object[]{ANOTHER_URI, asList(ANOTHER_PREFIX)},
-                new Object[]{XMLConstants.DEFAULT_NS_PREFIX, asList(DEFAULT_NS_URI)}, // TODO: Make it pass
-                new Object[]{XMLConstants.DEFAULT_NS_PREFIX, asList(XMLConstants.NULL_NS_URI)}, // TODO: Make it fail! in another scenario
+                new Object[]{XMLConstants.NULL_NS_URI, XMLConstants.DEFAULT_NS_PREFIX}, // TODO: Think what to do with NULL_NS_URI when no default ns bound: null or DEFAULT_NS_PREFIX
+                new Object[]{XMLConstants.XML_NS_URI, XMLConstants.XML_NS_PREFIX},
+                new Object[]{XMLConstants.XMLNS_ATTRIBUTE_NS_URI, XMLConstants.XMLNS_ATTRIBUTE},
+                new Object[]{"unboundNamespaceURI", null},
+                new Object[]{ANOTHER_URI, ANOTHER_PREFIX},
         };
     }
 
-    @Parameters(method = "getPrefixes")
+    @Parameters(method = "dataForGetPrefix")
+    @Test
+    public void shouldReturnCorrectPrefixForGivenNamespaceURI(String uri, String prefix) {
+        assertThat(commonContext.getPrefix(uri)).isEqualTo(prefix);
+    }
+
+    @Test
+    public void shouldReturnCorrectPrefixWhenDefaultNamespaceURIExplicitlyDefined() {
+        assertThat(defaultURIContext.getPrefix(DEFAULT_NS_URI)).isEqualTo(XMLConstants.DEFAULT_NS_PREFIX);
+    }
+
+    @Test
+    public void shouldReturnCorrectPrefixWhenSeveralPrefixesDefinedForNamespaceURI() {
+        assertThat(commonContext.getPrefix(URI)).isIn(PREFIX_ONE, PREFIX_TWO);
+    }
+
+    private Object dataForGetPrefixes() {
+        return new Object[]{
+                new Object[]{XMLConstants.XML_NS_URI, asList(XMLConstants.XML_NS_PREFIX)},
+                new Object[]{XMLConstants.XMLNS_ATTRIBUTE_NS_URI, asList(XMLConstants.XMLNS_ATTRIBUTE)},
+                new Object[]{"unboundNamespaceURI", emptyList()},
+                new Object[]{URI, asList(PREFIX_ONE, PREFIX_TWO)},
+                new Object[]{ANOTHER_URI, asList(ANOTHER_PREFIX)},
+                new Object[]{XMLConstants.NULL_NS_URI, asList(XMLConstants.DEFAULT_NS_PREFIX)},
+        };
+    }
+
+    @Parameters(method = "dataForGetPrefixes")
     @Test
     public void shouldReturnAllPrefixesForGivenNamespaceURI(String uri, List<String> prefixes) {
-        assertThat(context.getPrefixes(uri)).containsAll(prefixes); // TODO: choose correct contains* function
+        assertThat(commonContext.getPrefixes(uri)).containsAll(prefixes);
+    }
+
+    @Test
+    public void shouldReturnAllPrefixesForDefaultNamespaceURIWhenItIsExplicitlyDefined() {
+        assertThat(defaultURIContext.getPrefixes(DEFAULT_NS_URI)).containsAll(asList(XMLConstants.DEFAULT_NS_PREFIX));
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void shouldThrowExceptionWhenPrefixIsNull() {
-        context.getNamespaceURI(null);
+        commonContext.getNamespaceURI(null);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void shouldThrowExceptionWhenQueryingPrefixForNullNamespaceURI() {
-        context.getPrefix(null);
+        commonContext.getPrefix(null);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void shouldThrowExceptionWhenQueryingPrefixesForNullNamespaceURI() {
-        context.getPrefixes(null);
+        commonContext.getPrefixes(null);
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void shouldFailWhenThereAreSeveralIdenticalPrefixes() {
+        @NamespaceContext({
+                @Namespace(prefix = PREFIX_ONE, uri = URI),
+                @Namespace(prefix = PREFIX_ONE, uri = ANOTHER_URI),
+        })
+        class DuplicatedPrefixesTest {}
+        new XNamespaceContext(DuplicatedPrefixesTest.class);
     }
 }
