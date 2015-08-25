@@ -1,11 +1,14 @@
 package com.pseudochaos.xpom;
 
 import com.pseudochaos.xpom.annotation.XPath;
+import com.sun.xml.internal.bind.v2.TODO;
 import org.junit.Test;
 
 import static org.assertj.core.api.StrictAssertions.assertThat;
 
 public class PrimitivesAndWrappersITest {
+
+    // TODO: unsignedInteger, unsignedLong
 
     private static final String XML =
             "<dataTypes>" +

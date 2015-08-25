@@ -28,7 +28,7 @@ public final class XPom<T> {
     XPom(Class<T> clazz) {
         this.clazz = clazz;
         this.extractor = new JaxpValueExtractor();
-        this.configuration = new Configuration();
+        this.configuration = new Configuration(clazz);
 
         this.namespaceContext = new XNamespaceContext(clazz);
         this.fields = stream(clazz.getDeclaredFields())
@@ -57,11 +57,12 @@ public final class XPom<T> {
 
     private Consumer<XField> populateValue(T instance, String xml) {
         return field -> {
+            logger.debug("Using {} exception handling strategy", configuration.getExceptionHandlingStrategy(field));
             Optional<?> rawValue = extractValueFrom(xml, field);
             if (rawValue.isPresent()) {
                 rawValue.map(convert(field)).ifPresent(set(field, instance));
             } else {
-                handleValueNotPresent(field);
+                handleValueNotPresent(field, instance);
             }
         };
     }
@@ -93,7 +94,7 @@ public final class XPom<T> {
     }
 
     private void handleConversionException(XField field, Exception e) {
-        configuration.getExceptionHandlingStrategy(field.getJavaField()).handleConversionException(e, field);
+        configuration.getExceptionHandlingStrategy(field).handleConversionException(e, field);
     }
 
     private Consumer<Object> set(XField xField, T instance) {
@@ -108,8 +109,8 @@ public final class XPom<T> {
         };
     }
 
-    private void handleValueNotPresent(XField field) {
-        configuration.getExceptionHandlingStrategy(field.getJavaField()).handleValueNotPresent(field);
+    private void handleValueNotPresent(XField field, T instance) {
+        configuration.getExceptionHandlingStrategy(field).handleValueNotPresent(field, instance);
     }
 
     public NamespaceContext getNamespaceContext() {

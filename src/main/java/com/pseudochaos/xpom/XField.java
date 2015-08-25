@@ -1,11 +1,14 @@
 package com.pseudochaos.xpom;
 
+import com.google.common.base.Defaults;
+import com.pseudochaos.xpom.annotation.ExceptionHandlingStrategy;
 import com.pseudochaos.xpom.annotation.XPath;
 
 import javax.xml.namespace.NamespaceContext;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.util.Collection;
+import java.util.Objects;
 
 public class XField {
 
@@ -54,5 +57,21 @@ public class XField {
 
     public com.pseudochaos.xpom.XPath getXPath() {
         return xPath;
+    }
+
+    public ExceptionHandling getExceptionHandlingStrategy() {
+        return field.isAnnotationPresent(ExceptionHandlingStrategy.class) ?
+            field.getDeclaredAnnotation(ExceptionHandlingStrategy.class).value() : null;
+    }
+
+    public boolean hasDefaultValue(Object instance) {
+        Object javaDefault = Defaults.defaultValue(field.getType());
+        field.setAccessible(true);
+        try {
+            Object a = field.get(instance);
+            return !Objects.equals(a, javaDefault);
+        } catch (IllegalAccessException e) {
+            throw new XPomException("Failed to get default value assigned to the field: " + this, e);
+        }
     }
 }

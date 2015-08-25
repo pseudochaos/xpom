@@ -1,6 +1,7 @@
 package com.pseudochaos.xpom;
 
 import com.pseudochaos.xpom.annotation.XPath;
+import com.sun.xml.internal.bind.v2.TODO;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -35,16 +36,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  *          Class Level: @TypeConverter(HexByteConverter.class)
  *            Field Level: @TypeConverter(ByteConverter.class)
  *
+ * TODO: Levels of type converters: default -> factory -> class -> type
  * @TypeConverter vs @FieldConverter
  *
- * Exceptions and Default values
- *
- * TODO: Default values. Haw to handle them?
- * TODO: What to do with final fields?
- * TODO: What to do with static fields?
- * TODO: unsignedInteger, unsignedLong
- *
- * TODO: Levels of type converters: default -> factory -> class -> type
  * TODO: Chain of converters for parsing some value (i.e. boolean "true/false", "yes/no", "1/0")
  * TODO: Difference between Repository and Registry patterns
  */
@@ -64,13 +58,6 @@ public class XPomDemoTest {
         return XPomFactory.create(clazz).using(XML);
     }
 
-    static class Clazz { @XPath("/none") String string; }
-    @Test
-    public void no_value() throws Exception {
-        assertThat(to(Clazz.class).string).isEqualTo("Hello, XPom!");
-    }
-
-
     // -------------------- Simple Data Objects -------------------------------
 
     static class XString { @XPath("/dataTypes/string") String string; }
@@ -81,10 +68,10 @@ public class XPomDemoTest {
 
     // -------------------- Edge cases ----------------------------------------
 
+    // TODO: What to do with static fields?
     // TODO: Inheritance
-    // TODO: field is static
     // TODO: 128 for byte
-    
+
     private static class PrivateStaticNestedClass { @XPath("/dataTypes/string") String string; }
     @Test
     @Ignore

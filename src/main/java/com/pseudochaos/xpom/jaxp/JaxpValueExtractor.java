@@ -1,26 +1,28 @@
 package com.pseudochaos.xpom.jaxp;
 
-import com.pseudochaos.xpom.*;
+import com.pseudochaos.xpom.ValueExtractor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
 import javax.xml.xpath.*;
-import javax.xml.xpath.XPath;
 import java.io.StringReader;
 import java.util.Optional;
-import java.util.stream.IntStream;
 
 public class JaxpValueExtractor implements ValueExtractor {
+
+    private static final Logger logger = LoggerFactory.getLogger(JaxpValueExtractor.class);
 
     @Override
     public Optional<String> extractScalar(String xml, com.pseudochaos.xpom.XPath xPath) {
         InputSource source = new InputSource(new StringReader(xml));
+        XPath emptyXPath = XPathFactory.newInstance().newXPath();
+        emptyXPath.setNamespaceContext(xPath.getNamespaceContext());
         try {
-            XPath emptyXPath = XPathFactory.newInstance().newXPath();
-            emptyXPath.setNamespaceContext(xPath.getNamespaceContext());
             XPathExpression xPathExpression = emptyXPath.compile(xPath.asString());
-            String maybeResult = xPathExpression.evaluate(source);
-            return Optional.ofNullable(maybeResult);
+            String result = xPathExpression.evaluate(source);
+            return result.isEmpty() ? Optional.empty() : Optional.of(result);
         } catch (XPathExpressionException e) {
             throw new IllegalStateException(e);
         }
@@ -28,9 +30,9 @@ public class JaxpValueExtractor implements ValueExtractor {
 
     public Optional<String[]> extractCollection(String xml, com.pseudochaos.xpom.XPath xPath) {
         InputSource source = new InputSource(new StringReader(xml));
+        XPath emptyXPath = XPathFactory.newInstance().newXPath();
+        emptyXPath.setNamespaceContext(xPath.getNamespaceContext());
         try {
-            XPath emptyXPath = XPathFactory.newInstance().newXPath();
-            emptyXPath.setNamespaceContext(xPath.getNamespaceContext());
             XPathExpression xPathExpression = emptyXPath.compile(xPath.asString());
             NodeList nodes = (NodeList) xPathExpression.evaluate(source, XPathConstants.NODESET);
             if (nodes.getLength() > 0) {
