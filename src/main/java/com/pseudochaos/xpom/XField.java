@@ -9,6 +9,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.util.Collection;
 import java.util.Objects;
+import java.util.Optional;
 
 public class XField {
 
@@ -73,5 +74,10 @@ public class XField {
         } catch (IllegalAccessException e) {
             throw new XPomException("Failed to get default value assigned to the field: " + this, e);
         }
+    }
+
+    public Optional<Class<? extends Converter>> getConverter() {
+        return field.isAnnotationPresent(com.pseudochaos.xpom.annotation.Converter.class) ?
+                Optional.of(field.getDeclaredAnnotation(com.pseudochaos.xpom.annotation.Converter.class).value()) : Optional.empty();
     }
 }

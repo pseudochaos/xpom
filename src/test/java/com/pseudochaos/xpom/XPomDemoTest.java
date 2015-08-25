@@ -26,8 +26,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * Exception handling strategies levels (down-to-top):
  *      1) JVM Level   - can be overridden by setting a value on XPomFactory
- *      2) Class Level - can be overridden by setting a value on a particular class mapper
- *      3) Field Level - can be overridden by setting a value for a particular field on a particular class mapper (not recommended)
+ *      2) Class Level - TODO: can be overridden by setting a value on a particular class mapper
+ *      3) Field Level - TODO: can be overridden by setting a value for a particular field on a particular class mapper (not recommended)
+ *
+ * Default exception handling strategy - to FAIL always. Predefined strategies:
+ *      1) FAIL - Throws an exception if either value isn't present in the xml or conversion failed for mandatory fields
+ *      2) USE_DEFAULT - Uses either java default value or user's defined default value when value isn't present or conversion exception occurs
  *
  * Hierarchical configuration:
  *      JVM Level: XPomFactory.registerTypeConverter(Byte.class, new ByteConverter())

@@ -17,21 +17,20 @@ public class ConverterITest {
         return XPomFactory.create(clazz).using(XML);
     }
 
-    // Filed level converter
-
     static class BinIntConverter implements com.pseudochaos.xpom.Converter<String, Integer> {
         @Override
         public Integer convert(String source) {
             return source.startsWith("0b") ? Integer.parseInt(source.replaceFirst("0b", ""), 2) : Integer.parseInt( source, 2);
         }
     }
+
     static class PBinInt {
-        @XPath(value = "/dataTypes/bin", converter = BinIntConverter.class)
         @Converter(BinIntConverter.class)
-        int binInt;
+        @XPath(value = "/dataTypes/bin") int binInt;
     }
+
     @Test
-    public void primitive_int_bin_absolute_XPath() throws Exception {
+    public void primitive_bin_to_int() throws Exception {
         assertThat(to(PBinInt.class).binInt).isEqualTo(26);
     }
 

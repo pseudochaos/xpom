@@ -1,10 +1,12 @@
 package com.pseudochaos.xpom;
 
+import com.pseudochaos.xpom.annotation.Converter;
 import com.pseudochaos.xpom.annotation.ExceptionHandlingStrategy;
 import com.pseudochaos.xpom.annotation.XPath;
 import org.junit.Test;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -103,5 +105,19 @@ public class XFieldTest {
     @Test
     public void shouldIdentifyThatReferenceFieldHasJavaDefaultValue() throws Exception {
         assertThat(xFieldFor("notMandatoryFieldWithoutDefault").hasDefaultValue(this)).isFalse();
+    }
+
+    @XPath("/dummy")
+    @Converter(com.pseudochaos.xpom.Converter.class)
+    private int fieldWithConverter;
+
+    @Test
+    public void shouldExtractOptionalWithConverterFromConverterAnnotation() throws Exception {
+        assertThat(xFieldFor("fieldWithConverter").getConverter()).isEqualTo(Optional.of(com.pseudochaos.xpom.Converter.class));
+    }
+
+    @Test
+    public void shouldExtractEmptyOptionalWhenNoConverterAnnotationPresent() throws Exception {
+        assertThat(xFieldFor("intFieldWithDefault").getConverter()).isEqualTo(Optional.empty());
     }
 }

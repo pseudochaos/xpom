@@ -12,6 +12,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import static com.pseudochaos.ObjectUtils.newInstanceOf;
 import static java.util.Arrays.stream;
 import static java.util.stream.Collectors.toSet;
 
@@ -47,14 +48,6 @@ public final class XPom<T> {
         return instance;
     }
 
-    private T newInstanceOf(Class<T> clazz) {
-        try {
-            return clazz.newInstance();
-        } catch (InstantiationException | IllegalAccessException e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
     private Consumer<XField> populateValue(T instance, String xml) {
         return field -> {
             logger.debug("Using {} exception handling strategy", configuration.getExceptionHandlingStrategy(field));
@@ -81,16 +74,12 @@ public final class XPom<T> {
     private Function<Object, Object> convert(XField field) {
         return rawValue -> {
             try {
-                return resolveConverter(field).convert(rawValue);
+                return configuration.resolveConverter(field).convert(rawValue);
             } catch (Exception e) {
                 handleConversionException(field, e);
                 return null; // Will be converted to Optional.empty() by map() function
             }
         };
-    }
-
-    private Converter<Object, ?> resolveConverter(XField field) {
-        return configuration.resolveConverter(field.getJavaField());
     }
 
     private void handleConversionException(XField field, Exception e) {

@@ -1,8 +1,7 @@
 package com.pseudochaos.xpom;
 
-import java.lang.reflect.Field;
-
-import static com.pseudochaos.ObjectUtils.coalesce;
+import static com.pseudochaos.ObjectUtils.firstNonNull;
+import static com.pseudochaos.ObjectUtils.newInstanceOf;
 
 public class Configuration<T> {
 
@@ -14,12 +13,15 @@ public class Configuration<T> {
         this.converterResolver = new HierarchicalConverterResolver();
     }
 
-    Converter<Object, ?> resolveConverter(Field field) {
-        return (Converter<Object, ?>) converterResolver.resolve(field);
+    public Converter<Object, ?> resolveConverter(XField field) {
+        if (field.getConverter().isPresent()) {
+            return newInstanceOf(field.getConverter().get());
+        }
+        return (Converter<Object, ?>) converterResolver.resolve(field.getJavaField());
     }
 
     public ExceptionHandlingStrategy getExceptionHandlingStrategy(XField field) {
-        return coalesce(
+        return firstNonNull(
                 field.getExceptionHandlingStrategy(),
                 getClassExceptionHandlingStrategy(),
                 XPomFactory.getExceptionHandlingStrategy()

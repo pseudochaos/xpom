@@ -1,9 +1,11 @@
 package com.pseudochaos.xpom;
 
-import com.pseudochaos.xpom.annotation.XPath;
-
-import java.lang.reflect.*;
+import java.lang.reflect.Array;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
 import java.util.*;
+import java.util.stream.IntStream;
 
 import static java.util.Arrays.stream;
 
@@ -36,37 +38,8 @@ class HierarchicalConverterResolver implements ConverterResolver {
 
     @Override
     public Converter<?, ?> resolve(Field field) {
-        XPath xPath = field.getAnnotation(XPath.class);
-        Class<? extends Converter> converter = xPath.converter();
-        if (!converter.equals(Converter.class)) {
-            System.out.println("Hi");
-            return newInstance(converter);
-        } else if (Collection.class.isAssignableFrom(field.getType())) {
-            return f -> {
-                String[] rawItems = (String[]) f;
-
-                Converter<String, ?> conv;
-                if (field.getGenericType() instanceof ParameterizedType) {
-                    Class<?> elementType = (Class<?>) ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0];
-                    conv = (Converter<String, ?>) resolve(elementType);
-                } else {
-                    conv = (Converter<String, ?>) registry.get(String.class);
-                }
-
-                Collection collection = null;
-                Class<?> type = field.getType();
-                if (type.isInterface() || Modifier.isAbstract(type.getModifiers())) {
-                    if (List.class.isAssignableFrom(type)) {
-                        collection = new ArrayList<>();
-                    }
-                }
-
-                for (String item : rawItems) {
-                    collection.add(conv.convert(item));
-                }
-                return collection;
-            };
-
+        if (Collection.class.isAssignableFrom(field.getType())) {
+            return new CollectionConverter(field, this);
         } else {
             return resolve(field.getType());
         }
@@ -75,62 +48,73 @@ class HierarchicalConverterResolver implements ConverterResolver {
     @Override
     public Converter<?, ?> resolve(Class<?> type) {
         Converter<?, ?> result;
-        if (type.isArray()) {
-            result = new ArrayConverter(type, this);
-        } else if (Collection.class.isAssignableFrom(type)) {
-            throw new IllegalStateException("Can't be here");
+        if (Collection.class.isAssignableFrom(type)) {
+            throw new XPomException("Can't be here!");
+        } else if (type.isArray()) {
+            result = arrayConverter(type, this);
         } else if (type.isEnum()) {
             result = enumConverter(type);
         } else {
             result = registry.get(type);
         }
-        if (result == null) {
-            throw new IllegalStateException("Failed to find a suitable converter for the type: " + type);
-        }
-        return result;
-    }
-
-    private <T> T newInstance(Class<T> type) {
-        try {
-            return type.newInstance();
-        } catch (InstantiationException | IllegalAccessException e) {
-            throw new IllegalStateException(e);
-        }
+        return Objects.requireNonNull(result, "Failed to find a suitable converter for the type: " + type);
     }
 
     private Converter<?, ?> enumConverter(Class<?> type) {
-        return value -> {
-            Optional<?> constant = stream(type.getEnumConstants()).filter(c -> c.toString().equals(value)).findFirst();
-            if (constant.isPresent()) {
-                return constant.get();
-            } else {
-                // TODO: handle non-matching value
-                throw new IllegalStateException("No enum constant value found");
-            }
+        return value -> stream(type.getEnumConstants())
+                .filter(c -> c.toString().equals(value))
+                .findFirst()
+                // TODO: How to handle non-matching values
+                .orElseThrow(() -> new XPomException("No enum constant value found"));
+    }
+
+    private Converter<String[], ?> arrayConverter(Class<?> type, ConverterResolver resolver) {
+        return values -> {
+            Class<?> componentType = type.getComponentType();
+            Object array = Array.newInstance(componentType, values.length);
+            Converter<String, ?> converter = (Converter<String, ?>) resolver.resolve(componentType);
+            IntStream.range(0, values.length).forEach(index -> Array.set(array, index, converter.convert(values[index])));
+            return array;
         };
     }
 
-    static class ArrayConverter implements Converter<Object, Object> {
+    static class CollectionConverter implements Converter<String[], Object> {
 
-        private final Class<?> type;
+        private final Field field;
         private final ConverterResolver resolver;
 
-        public ArrayConverter(Class<?> type, ConverterResolver resolver) {
-            this.type = type;
+        public CollectionConverter(Field field, ConverterResolver resolver) {
+            this.field = field;
             this.resolver = resolver;
         }
 
         @Override
-        public Object convert(Object source) {
-            String[] values = (String[]) source;
-            Class<?> componentType = type.getComponentType();
-            Object array = Array.newInstance(componentType, values.length);
+        public Object convert(String[] rawItems) {
+            Collection collection = getCollection();
+            Converter<String, ?> converter = resolveConverterForCollectionItem();
+            stream(rawItems).forEach(item -> collection.add(converter.convert(item)));
+            return collection;
+        }
 
-            Converter<Object, ?> converter = (Converter<Object, ?>) resolver.resolve(componentType);
-            for (int i = 0; i < values.length; i++) {
-                Array.set(array, i, converter.convert(values[i]));
+        private Converter<String, ?> resolveConverterForCollectionItem() {
+            Class<?> elementType;
+            if (field.getGenericType() instanceof ParameterizedType) {
+                elementType = (Class<?>) ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0];
+            } else {
+                elementType = String.class; // If no GenericType present on the collection
             }
-            return array;
+            return (Converter<String, ?>) resolver.resolve(elementType);
+        }
+
+        private Collection getCollection() {
+            Class<?> type = field.getType();
+            if (type.isInterface() || Modifier.isAbstract(type.getModifiers())) {
+                if (List.class.isAssignableFrom(type)) {
+                    return new ArrayList<>();
+                }
+                // TODO: Add more Collection subtypes here
+            }
+            return null;
         }
     }
 }
